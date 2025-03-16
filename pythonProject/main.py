@@ -1,56 +1,43 @@
 import pandas as pd
 import matplotlib.pyplot as plt
-import seaborn as sns
 
-# Load data
-data = pd.read_csv('population_2019.csv')
+# to show available styles
+# print(plt.style.available)
+plt.style.use("ggplot")
 
-# Total population by voivodeship
-total_by_voivodeship = data.groupby('voivodeship')['n_people'].sum().sort_values(ascending=False)
-print("Total Population by Voivodeship:\n", total_by_voivodeship)
+data = pd.read_csv("../dane_demograficzne_2024.csv", skipinitialspace=True)
 
-# Plot total population by voivodeship
-plt.figure(figsize=(12, 10))
-total_by_voivodeship.plot(kind='bar')
-plt.title('Total Population by Voivodeship (2019)')
-plt.ylabel('Population')
-plt.xticks(rotation=45)
+data.replace('X', pd.NA, inplace=True)
+data.dropna(subset='Population', inplace=True)
+data['Population'] = data['Population'].astype(float)
+
+# men and woman death comparison
+pivot_table = data.pivot_table(index='Category', values='Deaths', aggfunc='sum')
+comparison = pivot_table.loc[['Men', 'Women']]
+
+ax = comparison.plot(kind='bar', stacked=False)
+plt.title('Comparison of Deaths between Men and Women')
+plt.ylabel('Number of Deaths')
+plt.xlabel('Gender')
+plt.xticks(rotation=0)
 plt.tight_layout()
-plt.savefig('total_population_by_voivodeship.png') # saving plot as image
+for p in ax.patches:
+    ax.annotate(str(int(p.get_height())), (p.get_x() * 1.01, p.get_height() * 1.01))
+plt.savefig('comparison_deaths_men_women.png')
 plt.show()
 
-# Gender distribution
-gender_distribution = data.groupby('sex')['n_people'].sum()
-print("\nGender Distribution:\n", gender_distribution)
+# population in diffrent areas comparison
 
-# Plot gender distribution
-sns.barplot(x=gender_distribution.index, y=gender_distribution.values)
-plt.title('Gender Distribution (2019)')
-plt.ylabel('Population')
-plt.savefig('gender_distribution.png')
-plt.show()
-
-# Population by age group
-age_group_distribution = data.groupby('age_group')['n_people'].sum().sort_index()
-print("\nPopulation by Age Group:\n", age_group_distribution)
-
-# Plot population by age group
-plt.figure(figsize=(12, 6))
-age_group_distribution.plot(kind='bar')
-plt.title('Population by Age Group (2019)')
-plt.ylabel('Population')
-plt.xticks(rotation=45)
+pivot_table = data.pivot_table(index='Category', values='Population', aggfunc='sum')
+comparison = pivot_table.loc[['Cities', 'Villages', 'Urban-Rural Municipalities']] # Urban-Rural Municipalities - Gminy miejsko wiejskie
+ax = comparison.plot(kind='bar', stacked=True, edgecolor='black')
+plt.title('Comparison of Population in Different Areas')
+plt.ylabel('Number of People')
+plt.xlabel('Area')
+plt.xticks(rotation=0)
 plt.tight_layout()
-plt.savefig('population_by_age_group.png')
+for p in ax.patches:
+    ax.annotate(f"{int(p.get_height()):,}".replace(",", " "), (p.get_x() * 1.01, p.get_height() * 1.01))
+plt.savefig('comparison_population_areas.png')
 plt.show()
 
-# Urban vs Rural population
-area_distribution = data.groupby('area_type')['n_people'].sum()
-print("\nUrban vs Rural Population:\n", area_distribution)
-
-# Plot urban vs rural distribution
-sns.barplot(x=area_distribution.index, y=area_distribution.values)
-plt.title('Urban vs Rural Population (2019)')
-plt.ylabel('Population')
-plt.savefig('urban_vs_rural_population.png')
-plt.show()
