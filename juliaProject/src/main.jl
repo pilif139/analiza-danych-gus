@@ -1,41 +1,41 @@
 using CSV
 using DataFrames
-using StatsPlots
-using Printf
+using Statistics
+using Plots
+using GLM
 
-# Read the CSV file
-data = CSV.read("../dane_demograficzne_2024.csv", DataFrame; ignorerepeated = true, delim = ',')
+# load data
+df = CSV.read("../prognoza.csv", DataFrame)
 
-data.Population = convert(Vector{Union{String, Missing}}, data.Population)
+# missing values
+missing_counts = map(col -> sum(ismissing, col), eachcol(df))
 
-data.Population = replace(data.Population, "X" => missing)
+# describe data frame
+describe(df)
 
-dropmissing!(data, :Population)
-
-data.Population = parse.(Float64, data.Population)
-
-data.Population = [@sprintf("%.0f", pop) for pop in data.Population]
-
-# Create a pivot table to compare deaths between men and women
-pivot_table = combine(groupby(data, :Category), :Deaths => sum => :TotalDeaths)
-comparison = filter(row -> row.Category in ["Men", "Women"], pivot_table)
-
-# Plot the comparison using a bar chart
-bar_plot = @df comparison bar(
-    :Category, 
-    :TotalDeaths, 
-    legend=false, 
-    title="Comparison of Deaths between Men and Women", 
-    xlabel="Gender", 
-    ylabel="Number of Deaths",
-    size=(800, 800),
-    color=:red,
-)
-
-bar_plot = plot!(bar_plot, yformatter=x->@sprintf("%.0f",x))
-
-for i in 1:nrow(comparison)
-	annotate!(bar_plot, i - 100, comparison.TotalDeaths[i] + 100, text(string(comparison.TotalDeaths[i]), :center, 10))
+# Plot population over time
+areas = unique(df.Area)
+population_plot = plot(xlabel="Year", ylabel="Population", title="Population Over Time")
+for area in areas
+    area_data = df[df.Area .== area, :]
+    plot!(population_plot, area_data.Year, area_data.Population_31_XII, label=area)
 end
+savefig(population_plot, "./graphs/population_over_time.png")
 
-savefig(bar_plot, "comparison_deaths_men_women.png")
+# births and deaths over time
+births_plot = plot(xlabel="Year", ylabel="Count", title="Births over time")
+deaths_plot = plot(xlabel="Year", ylabel="Count", title="Deaths over time")
+for area in areas
+    area_data = df[df.Area .== area, :]
+    plot!(births_plot, area_data.Year, area_data.Births, label="$area Births")
+    plot!(deaths_plot, area_data.Year, area_data.Deaths, label="$area Deaths")
+end
+savefig(births_plot, "./graphs/births_over_time.png")
+savefig(deaths_plot, "./graphs/deaths_over_time.png")
+
+# average population change
+df.Population_Change = [0; diff(df.Population_31_XII)]
+average_population_change = combine(groupby(df, :Area), :Population_Change => mean => :Average_Population_Change)
+
+average_population_change_bar = bar(average_population_change.Area, average_population_change.Average_Population_Change, legend=false)
+savefig(average_population_change_bar, "./graphs/average_population_change.png")
